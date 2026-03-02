@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { pgTable, text, timestamp, boolean, index } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, boolean, index, integer, bigint, real } from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -89,5 +89,54 @@ export const accountRelations = relations(account, ({ one }) => ({
   user: one(user, {
     fields: [account.userId],
     references: [user.id],
+  }),
+}));
+
+// Market Data Schema
+
+export const marketServer = pgTable("market_server", {
+  id: integer("id").primaryKey(),
+  name: text("name").notNull(),
+  lastFetchedAt: timestamp("last_fetched_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at")
+    .$onUpdate(() => new Date())
+    .defaultNow()
+    .notNull(),
+});
+
+// Price history — one row per vnum per server per fetch
+export const marketItemPriceHistory = pgTable(
+  "market_item_price_history",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    vnum: integer("vnum").notNull(),
+    serverId: integer("server_id")
+      .notNull()
+      .references(() => marketServer.id, { onDelete: "cascade" }),
+    avgPrice: real("avg_price").default(0).notNull(),
+    minPrice: real("min_price").default(0).notNull(),
+    maxPrice: real("max_price").default(0).notNull(),
+    totalListings: integer("total_listings").default(0).notNull(),
+    totalQuantity: integer("total_quantity").default(0).notNull(),
+    fetchedAt: timestamp("fetched_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("price_history_vnum_idx").on(table.vnum),
+    index("price_history_server_id_idx").on(table.serverId),
+    index("price_history_fetched_at_idx").on(table.fetchedAt),
+    index("price_history_vnum_server_idx").on(table.vnum, table.serverId),
+    index("price_history_vnum_server_fetched_idx").on(table.vnum, table.serverId, table.fetchedAt),
+  ]
+);
+
+export const marketServerRelations = relations(marketServer, ({ many }) => ({
+  priceHistory: many(marketItemPriceHistory),
+}));
+
+export const marketItemPriceHistoryRelations = relations(marketItemPriceHistory, ({ one }) => ({
+  server: one(marketServer, {
+    fields: [marketItemPriceHistory.serverId],
+    references: [marketServer.id],
   }),
 }));

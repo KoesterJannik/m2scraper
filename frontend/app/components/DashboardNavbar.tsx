@@ -30,6 +30,12 @@ export function DashboardNavbar() {
               >
                 Dashboard
               </Link>
+              <Link
+                to="/market"
+                className="text-gray-700 hover:text-gray-900 font-medium transition-colors"
+              >
+                Market
+              </Link>
             </div>
           </div>
           

@@ -20,4 +20,8 @@ app.use(express.json());
 app.all("/api/auth/*splat", toNodeHandler(auth));
 
 app.use("/api/users", isAuthenticated, usersRouter);
+
+import marketRouter from "./router/market.router";
+app.use("/api/market", marketRouter);
+
 export default app;
