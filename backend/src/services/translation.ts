@@ -152,7 +152,7 @@ export function getItemLevel(vnum: number): number | null {
     }
   }
 
-  const item = _itemProtoCache[vnum.toString()];
+  const item = _itemProtoCache![vnum.toString()];
   if (item && typeof item.level === 'number') {
     return item.level;
   }
