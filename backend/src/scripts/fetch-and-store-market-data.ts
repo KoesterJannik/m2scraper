@@ -245,9 +245,9 @@ async function storePriceHistory(serverConfig: ServerConfig, items: RawMarketIte
 }
 
 /**
- * Main
+ * Main — exported so it can be called from the cron scheduler
  */
-async function main() {
+export async function main() {
   console.log('╔═══════════════════════════════════════════════════════╗');
   console.log('║     Metin2 Market Data Collector                      ║');
   console.log('╚═══════════════════════════════════════════════════════╝\n');
@@ -285,7 +285,10 @@ async function main() {
   console.log('✅ All done! JSON files saved + price history stored.');
 }
 
-main().catch((error) => {
-  console.error('💥 Fatal error:', error);
-  process.exit(1);
-});
+// Run directly when called as a script (npm run market:sync)
+if (require.main === module) {
+  main().catch((error) => {
+    console.error('💥 Fatal error:', error);
+    process.exit(1);
+  });
+}

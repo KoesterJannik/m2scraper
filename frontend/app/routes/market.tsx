@@ -15,11 +15,6 @@ export function meta({}: Route.MetaArgs) {
 }
 
 const YANG_PER_WON = 100_000_000;
-const ICON_BASE_URL = "https://metin2alerts.com/m2_data/icons";
-
-function itemIconUrl(vnum: number): string {
-  return `${ICON_BASE_URL}/${vnum}.png`;
-}
 
 function formatWon(price: number): string {
   if (price <= 0) return "-";
@@ -346,19 +341,8 @@ function ListingsTable({ items }: { items: any[] }) {
             <tr key={`${item.id}-${item.serverId}-${idx}`} className="hover:bg-gray-50">
               <td className="px-4 py-3 text-sm font-mono">{item.vnum}</td>
               <td className="px-4 py-3 text-sm">
-                <div className="flex items-center gap-2">
-                  <img
-                    src={itemIconUrl(item.vnum)}
-                    alt=""
-                    className="w-8 h-8 object-contain flex-shrink-0"
-                    loading="lazy"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                  />
-                  <div>
-                    <div className="font-medium">{item.nameGerman || item.name}</div>
-                    {item.setGerman && <div className="text-xs text-gray-500">{item.setGerman}</div>}
-                  </div>
-                </div>
+                <div className="font-medium">{item.nameGerman || item.name}</div>
+                {item.setGerman && <div className="text-xs text-gray-500">{item.setGerman}</div>}
               </td>
               <td className="px-4 py-3 text-sm">{item.seller}</td>
               <td className="px-4 py-3 text-sm text-right">
@@ -425,18 +409,7 @@ function PriceHistoryTable({
               onMouseLeave={onRowMouseLeave}
             >
               <td className="px-4 py-3 text-sm font-mono">{item.vnum}</td>
-              <td className="px-4 py-3 text-sm font-medium">
-                <div className="flex items-center gap-2">
-                  <img
-                    src={itemIconUrl(item.vnum)}
-                    alt=""
-                    className="w-8 h-8 object-contain flex-shrink-0"
-                    loading="lazy"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                  />
-                  <span>{item.name}</span>
-                </div>
-              </td>
+              <td className="px-4 py-3 text-sm font-medium">{item.name}</td>
               <td className="px-4 py-3 text-sm text-right">
                 <PriceCell price={item.avgPrice} />
               </td>

@@ -117,19 +117,11 @@ export function PriceHistoryPopup({ vnum, serverId, itemName, position, onClose 
       <div className="bg-white rounded-xl shadow-2xl border border-gray-200 w-[500px] overflow-hidden">
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <img
-              src={`https://metin2alerts.com/m2_data/icons/${vnum}.png`}
-              alt=""
-              className="w-10 h-10 object-contain flex-shrink-0 drop-shadow-lg"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-            />
-            <div>
-              <h3 className="text-white font-semibold text-sm truncate max-w-[320px]">
-                {data?.name || itemName}
-              </h3>
-              <span className="text-blue-200 text-xs">VNUM: {vnum}</span>
-            </div>
+          <div>
+            <h3 className="text-white font-semibold text-sm truncate max-w-[350px]">
+              {data?.name || itemName}
+            </h3>
+            <span className="text-blue-200 text-xs">VNUM: {vnum}</span>
           </div>
           <button
             onClick={onClose}
