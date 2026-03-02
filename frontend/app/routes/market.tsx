@@ -7,7 +7,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { usePriceHistory, useListings } from "../hooks/useMarketItems";
 import { useServers } from "../hooks/useServers";
-import { useSearchParams as useRouterSearchParams } from "react-router";
+import { useSearchParams as useRouterSearchParams, useNavigate } from "react-router";
 import type { MarketSearchParams, Bookmark, PriceAlert } from "../lib/api";
 import {
   suggestItemNames,
@@ -100,6 +100,8 @@ interface FilterState {
   search: string;
   minPrice: string;
   maxPrice: string;
+  minLevel: string;
+  maxLevel: string;
   serverId: number | undefined;
   sortBy: MarketSearchParams["sortBy"];
   sortOrder: "asc" | "desc";
@@ -113,6 +115,8 @@ function parseUrlParams(urlParams: URLSearchParams): FilterState {
     search: urlParams.get("search") || "",
     minPrice: urlParams.get("minPrice") || "",
     maxPrice: urlParams.get("maxPrice") || "",
+    minLevel: urlParams.get("minLevel") || "",
+    maxLevel: urlParams.get("maxLevel") || "",
     serverId: urlParams.get("serverId") ? parseInt(urlParams.get("serverId")!) : undefined,
     sortBy: (urlParams.get("sortBy") as MarketSearchParams["sortBy"]) || "price",
     sortOrder: (urlParams.get("sortOrder") as "asc" | "desc") || "desc",
@@ -127,6 +131,8 @@ function buildUrlParams(state: FilterState): URLSearchParams {
   if (state.search) p.set("search", state.search);
   if (state.minPrice) p.set("minPrice", state.minPrice);
   if (state.maxPrice) p.set("maxPrice", state.maxPrice);
+  if (state.minLevel) p.set("minLevel", state.minLevel);
+  if (state.maxLevel) p.set("maxLevel", state.maxLevel);
   if (state.serverId !== undefined) p.set("serverId", state.serverId.toString());
   if (state.sortBy && state.sortBy !== "price") p.set("sortBy", state.sortBy);
   if (state.sortOrder !== "desc") p.set("sortOrder", state.sortOrder);
@@ -145,6 +151,8 @@ export default function Market() {
   const [searchInput, setSearchInput] = useState(urlState.search);
   const [minPrice, setMinPrice] = useState(urlState.minPrice);
   const [maxPrice, setMaxPrice] = useState(urlState.maxPrice);
+  const [minLevel, setMinLevel] = useState(urlState.minLevel);
+  const [maxLevel, setMaxLevel] = useState(urlState.maxLevel);
   const [selectedServerId, setSelectedServerId] = useState<number | undefined>(urlState.serverId);
   const [activeTab, setActiveTab] = useState<TabType>(urlState.tab);
   const [sortBy, setSortBy] = useState<MarketSearchParams["sortBy"]>(urlState.sortBy);
@@ -157,6 +165,8 @@ export default function Market() {
   const debouncedSearch = useDebounce(searchInput, 500);
   const debouncedMinPrice = useDebounce(minPrice, 500);
   const debouncedMaxPrice = useDebounce(maxPrice, 500);
+  const debouncedMinLevel = useDebounce(minLevel, 500);
+  const debouncedMaxLevel = useDebounce(maxLevel, 500);
   const debouncedAttrs = useDebounce(serializeAttrs(attrChips), 500);
 
   // Sync debounced values → URL (triggers API call)
@@ -166,6 +176,8 @@ export default function Market() {
       search: debouncedSearch,
       minPrice: debouncedMinPrice,
       maxPrice: debouncedMaxPrice,
+      minLevel: debouncedMinLevel,
+      maxLevel: debouncedMaxLevel,
       serverId: selectedServerId,
       sortBy,
       sortOrder,
@@ -173,13 +185,15 @@ export default function Market() {
       attrs: debouncedAttrs,
     };
     setUrlParams(buildUrlParams(newState), { replace: true });
-  }, [debouncedSearch, debouncedMinPrice, debouncedMaxPrice, selectedServerId, debouncedAttrs, activeTab, sortBy, sortOrder, setUrlParams]);
+  }, [debouncedSearch, debouncedMinPrice, debouncedMaxPrice, debouncedMinLevel, debouncedMaxLevel, selectedServerId, debouncedAttrs, activeTab, sortBy, sortOrder, setUrlParams]);
 
   // Build the API search params from URL state
   const searchParams: MarketSearchParams = useMemo(() => ({
     search: urlState.search || undefined,
     minPrice: urlState.minPrice ? parseFloat(urlState.minPrice) : undefined,
     maxPrice: urlState.maxPrice ? parseFloat(urlState.maxPrice) : undefined,
+    minLevel: urlState.minLevel ? parseInt(urlState.minLevel) : undefined,
+    maxLevel: urlState.maxLevel ? parseInt(urlState.maxLevel) : undefined,
     serverId: urlState.serverId,
     attrs: urlState.attrs || undefined,
     sortBy: urlState.sortBy,
@@ -458,6 +472,34 @@ export default function Market() {
                     />
                   </div>
                   {activeTab === "listings" && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Min Level</label>
+                        <input
+                          type="number"
+                          step="1"
+                          min="0"
+                          value={minLevel}
+                          onChange={(e) => setMinLevel(e.target.value)}
+                          placeholder="0"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Max Level</label>
+                        <input
+                          type="number"
+                          step="1"
+                          min="0"
+                          value={maxLevel}
+                          onChange={(e) => setMaxLevel(e.target.value)}
+                          placeholder="∞"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                    </>
+                  )}
+                  {activeTab === "listings" && (
                     <div className="lg:col-span-3">
                       <label className="block text-sm font-medium text-gray-700 mb-2">Attribute Filters</label>
                       <AttributeFilterChips
@@ -520,6 +562,13 @@ export default function Market() {
                         isBookmarked={isBookmarked}
                         onToggleBookmark={handleToggleBookmark}
                         onCreateAlert={openAlertForm}
+                        onItemClick={(item) => {
+                          // Switch to price history tab and filter by this item
+                          setSearchInput(item.vnum.toString());
+                          setActiveTab("priceHistory");
+                          setSelectedServerId(item.serverId);
+                          updateUrl({ tab: "priceHistory", search: item.vnum.toString(), serverId: item.serverId, offset: 0 });
+                        }}
                       />
                     ) : (
                       <PriceHistoryTable
@@ -856,12 +905,14 @@ function ListingsTable({
   isBookmarked,
   onToggleBookmark,
   onCreateAlert,
+  onItemClick,
 }: {
   items: any[];
   highlightAttrs?: string[];
   isBookmarked: (vnum: number, seller: string) => boolean;
   onToggleBookmark: (item: any) => void;
   onCreateAlert: (item: any) => void;
+  onItemClick: (item: any) => void;
 }) {
   const lowerHighlights = highlightAttrs.map(h => h.toLowerCase()).filter(Boolean);
 
@@ -889,8 +940,12 @@ function ListingsTable({
           items.map((item: any, idx: number) => {
             const bookmarked = isBookmarked(item.vnum, item.seller);
             return (
-              <tr key={`${item.id}-${item.serverId}-${idx}`} className="hover:bg-gray-50 group">
-                <td className="px-2 py-3 text-center">
+              <tr 
+                key={`${item.id}-${item.serverId}-${idx}`} 
+                className="hover:bg-gray-50 group cursor-pointer"
+                onClick={() => onItemClick(item)}
+              >
+                <td className="px-2 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center justify-center gap-1">
                     <button
                       onClick={() => onToggleBookmark(item)}

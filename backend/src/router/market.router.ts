@@ -43,6 +43,8 @@ router.get("/listings", async (req, res) => {
       serverId: req.query.serverId ? parseInt(req.query.serverId as string) : undefined,
       category: req.query.category as string | undefined,
       attrs,
+      minLevel: req.query.minLevel ? parseInt(req.query.minLevel as string) : undefined,
+      maxLevel: req.query.maxLevel ? parseInt(req.query.maxLevel as string) : undefined,
       limit: req.query.limit ? parseInt(req.query.limit as string) : 50,
       offset: req.query.offset ? parseInt(req.query.offset as string) : 0,
       sortBy: (req.query.sortBy as ListingSearchParams['sortBy']) || 'price',

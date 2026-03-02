@@ -48,6 +48,8 @@ export interface MarketSearchParams {
   serverId?: number;
   category?: string;
   attrs?: string; // pipe-separated: "name1:value1|name2:value2"
+  minLevel?: number;
+  maxLevel?: number;
   limit?: number;
   offset?: number;
   sortBy?: "price" | "vnum" | "name" | "seller";

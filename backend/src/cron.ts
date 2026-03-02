@@ -138,7 +138,7 @@ async function checkPriceAlerts() {
  */
 export function startCronJobs() {
   // Run market sync every 5 minutes
-  cron.schedule("*/1 * * * *", async () => {
+  cron.schedule("*/10 * * * *", async () => {
     console.log(`\n⏰ [CRON] Market sync started at ${new Date().toISOString()}`);
     try {
       await syncMarketData();

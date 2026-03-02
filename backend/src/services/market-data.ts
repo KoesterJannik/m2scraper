@@ -8,6 +8,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { SERVERS } from '../config/servers';
+import { getItemLevel } from './translation';
 
 const MARKET_JSON_DIR = path.resolve(__dirname, '../../data/market');
 
@@ -98,6 +99,8 @@ export interface ListingSearchParams {
   serverId?: number | undefined;
   category?: string | undefined;
   attrs?: AttrFilter[] | undefined;
+  minLevel?: number | undefined;
+  maxLevel?: number | undefined;
   limit?: number | undefined;
   offset?: number | undefined;
   sortBy?: 'price' | 'vnum' | 'name' | 'seller' | undefined;
@@ -125,6 +128,8 @@ export function searchListings(params: ListingSearchParams): ListingSearchResult
     serverId,
     category,
     attrs,
+    minLevel,
+    maxLevel,
     limit = 50,
     offset = 0,
     sortBy = 'price',
@@ -165,6 +170,17 @@ export function searchListings(params: ListingSearchParams): ListingSearchResult
   if (minPrice !== undefined) allItems = allItems.filter(i => i.price >= minPrice);
   if (maxPrice !== undefined) allItems = allItems.filter(i => i.price <= maxPrice);
   if (category) allItems = allItems.filter(i => i.category === category);
+
+  // Level filters (lookup from item_proto.json)
+  if (minLevel !== undefined || maxLevel !== undefined) {
+    allItems = allItems.filter(i => {
+      const level = getItemLevel(i.vnum);
+      if (level === null) return false; // Exclude items without level data
+      if (minLevel !== undefined && level < minLevel) return false;
+      if (maxLevel !== undefined && level > maxLevel) return false;
+      return true;
+    });
+  }
 
   // Attribute filters (multiple, AND logic — item must match ALL filters)
   if (attrs && attrs.length > 0) {

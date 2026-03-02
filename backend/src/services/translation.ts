@@ -125,3 +125,37 @@ export function getAttributeNames(): string[] {
   _cachedAttrNames = results;
   return _cachedAttrNames;
 }
+
+// ── Item Level Lookup (from item_proto.json) ──
+
+interface ItemProto {
+  [vnum: string]: {
+    level?: number;
+    [key: string]: any;
+  };
+}
+
+let _itemProtoCache: ItemProto | null = null;
+
+/**
+ * Get item level from item_proto.json
+ * Returns null if level is not found or item doesn't exist
+ */
+export function getItemLevel(vnum: number): number | null {
+  if (!_itemProtoCache) {
+    try {
+      const itemProtoPath = path.join(dataDir, 'item_proto.json');
+      _itemProtoCache = JSON.parse(fs.readFileSync(itemProtoPath, 'utf-8'));
+    } catch (error) {
+      console.error('Failed to load item_proto.json:', error);
+      return null;
+    }
+  }
+
+  const item = _itemProtoCache[vnum.toString()];
+  if (item && typeof item.level === 'number') {
+    return item.level;
+  }
+
+  return null;
+}
