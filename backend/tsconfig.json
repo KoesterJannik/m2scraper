@@ -43,5 +43,6 @@
   "include": [
     "src/**/*",
     "drizzle.config.ts"
-  ]
+  ],
+  "typeRoots": ["./node_modules/@types", "./src/types"]
 }
