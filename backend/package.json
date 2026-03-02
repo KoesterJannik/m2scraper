@@ -9,7 +9,7 @@
   
   "scripts": {
     "build": "tsc",
-    "start": "npm run db:push && node dist/server.js",
+    "start": "npm run db:push && node dist/src/server.js",
     "dev": "tsx --watch src/server.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
     "db:generate": "drizzle-kit generate",
