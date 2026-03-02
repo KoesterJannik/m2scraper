@@ -1,5 +1,6 @@
 import type { Route } from "./+types/dashboard";
 import { AuthGuard } from "../components/AuthGuard";
+import { DashboardNavbar } from "../components/DashboardNavbar";
 import { authClient } from "../lib/auth";
 
 export function meta({}: Route.MetaArgs) {
@@ -22,14 +23,17 @@ export default function Dashboard() {
 
   return (
     <AuthGuard>
-      <div className="min-h-screen bg-gray-50 py-8">
-        <div className="max-w-4xl mx-auto px-4">
-          <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-semibold mb-4">Session Data</h2>
-            <pre className="bg-gray-100 p-4 rounded-lg overflow-auto text-sm">
-              {JSON.stringify(session, null, 2)}
-            </pre>
+      <div className="min-h-screen bg-gray-50">
+        <DashboardNavbar />
+        <div className="py-8">
+          <div className="max-w-4xl mx-auto px-4">
+            <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h2 className="text-xl font-semibold mb-4">Session Data</h2>
+              <pre className="bg-gray-100 p-4 rounded-lg overflow-auto text-sm">
+                {JSON.stringify(session, null, 2)}
+              </pre>
+            </div>
           </div>
         </div>
       </div>
