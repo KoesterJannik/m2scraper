@@ -4,6 +4,7 @@ import { auth } from "./auth";
 import { toNodeHandler } from "better-auth/node";
 import { config } from "./config";
 import usersRouter from "./router/users.router";
+import isAuthenticated from "./middleware";
 const app = express();
 
 // Apply CORS middleware BEFORE routes
@@ -18,5 +19,5 @@ app.use(express.json());
 // Better Auth routes
 app.all("/api/auth/*splat", toNodeHandler(auth));
 
-app.use("/api/users", usersRouter);
+app.use("/api/users", isAuthenticated, usersRouter);
 export default app;

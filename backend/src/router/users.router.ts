@@ -4,8 +4,7 @@ import { isAuthenticated } from "../middleware";
 
 const router = Router();
 
-// Apply authentication middleware to all routes
-router.use(isAuthenticated);
+
 
 router.get("/me", async (req, res) => {
   // Session is already available from middleware via req.session
