@@ -55,13 +55,13 @@ export function getGermanSetName(setId: number): string | null {
 export function searchVnumsByName(searchTerm: string): number[] {
   const lower = searchTerm.toLowerCase();
   const results: number[] = [];
-  
+
   for (const [vnum, name] of Object.entries(itemNames)) {
     if (name.toLowerCase().includes(lower)) {
       results.push(parseInt(vnum));
     }
   }
-  
+
   return results;
 }
 
@@ -110,9 +110,9 @@ export function getAttributeNames(): string[] {
     // e.g. "%d%% Chance auf durchbohrenden Treffer" → "Chance auf durchbohrenden Treffer"
     const cleaned = desc
       .replace(/%0?\.\d+f/g, '')   // %0.1f etc
-      .replace(/%d/g, '')           // %d
-      .replace(/%%/g, '')           // %%
-      .replace(/[+\-]/g, '')        // + -
+      .replace(/%d/g, '')          // %d
+      .replace(/%%/g, '')          // %%
+      .replace(/[+\-]/g, '')       // + -
       .replace(/\s+/g, ' ')
       .trim();
 
@@ -126,36 +126,3 @@ export function getAttributeNames(): string[] {
   return _cachedAttrNames;
 }
 
-// ── Item Level Lookup (from item_proto.json) ──
-
-interface ItemProto {
-  [vnum: string]: {
-    level?: number;
-    [key: string]: any;
-  };
-}
-
-let _itemProtoCache: ItemProto | null = null;
-
-/**
- * Get item level from item_proto.json
- * Returns null if level is not found or item doesn't exist
- */
-export function getItemLevel(vnum: number): number | null {
-  if (!_itemProtoCache) {
-    try {
-      const itemProtoPath = path.join(dataDir, 'item_proto.json');
-      _itemProtoCache = JSON.parse(fs.readFileSync(itemProtoPath, 'utf-8'));
-    } catch (error) {
-      console.error('Failed to load item_proto.json:', error);
-      return null;
-    }
-  }
-
-  const item = _itemProtoCache![vnum.toString()];
-  if (item && typeof item.level === 'number') {
-    return item.level;
-  }
-
-  return null;
-}
