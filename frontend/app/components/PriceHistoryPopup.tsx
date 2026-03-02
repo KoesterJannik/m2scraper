@@ -63,6 +63,47 @@ function formatPriceShort(value: number): string {
   return "0";
 }
 
+// Custom tooltip component for Recharts
+function CustomTooltip({ active, payload, label }: any) {
+  if (!active || !payload || payload.length === 0) return null;
+
+  const data = payload[0]?.payload;
+  if (!data) return null;
+
+  const formatValue = (val: number | undefined): string => {
+    if (val === undefined || val === null || isNaN(val)) return "0 Won";
+    if (val >= 1_000) return `${(val / 1_000).toFixed(1)}K Won`;
+    if (val >= 1) return `${val.toFixed(2)} Won`;
+    if (val > 0) return `${val.toFixed(4)} Won`;
+    return "0 Won";
+  };
+
+  return (
+    <div style={{
+      backgroundColor: "#1f2937",
+      border: "none",
+      borderRadius: "8px",
+      padding: "8px 12px",
+      fontSize: "12px",
+      color: "#f9fafb",
+    }}>
+      <div style={{ color: "#9ca3af", marginBottom: "4px" }}>
+        {data.fullDate || label}
+      </div>
+      {payload.map((entry: any, index: number) => {
+        const value = entry.value;
+        return (
+          <div key={index} style={{ marginTop: "4px" }}>
+            <span style={{ color: entry.color || "#f9fafb" }}>
+              {entry.name}: {formatValue(value)} ({formatYangShort(value || 0)})
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function PriceHistoryPopup({ vnum, serverId, itemName, position, onClose }: PriceHistoryPopupProps) {
   const popupRef = useRef<HTMLDivElement>(null);
 
@@ -176,26 +217,7 @@ export function PriceHistoryPopup({ vnum, serverId, itemName, position, onClose 
                     axisLine={{ stroke: "#e5e7eb" }}
                     width={55}
                   />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#1f2937",
-                      border: "none",
-                      borderRadius: "8px",
-                      fontSize: "12px",
-                      color: "#f9fafb",
-                    }}
-                    labelStyle={{ color: "#9ca3af", marginBottom: "4px" }}
-                    labelFormatter={(label, payload) => {
-                      if (payload && payload.length > 0) {
-                        return payload[0]?.payload?.fullDate || label;
-                      }
-                      return label;
-                    }}
-                    formatter={(value: number, name: string) => [
-                      `${value.toLocaleString("de-DE", { maximumFractionDigits: 4 })} Won (${formatYangShort(value)})`,
-                      name,
-                    ]}
-                  />
+                  <Tooltip content={<CustomTooltip />} />
                   <Legend
                     wrapperStyle={{ fontSize: "11px" }}
                     iconSize={8}

@@ -10,7 +10,7 @@ export const SERVERS: ServerConfig[] = [
  // { id: 57, name: 'Barbaros' },
  // { id: 51, name: 'Dandanakan' },
  // { id: 439, name: 'Fırtına' },
- // { id: 438, name: 'Lodos' },
+ // { id: 438, name: 'Lodos' },docker
   { id: 437, name: 'Star' },
   { id: 436, name: 'Safir' },
  // { id: 431, name: 'Lucifer' },

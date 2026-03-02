@@ -3,6 +3,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 interface AutocompleteInputProps {
   value: string;
   onChange: (value: string) => void;
+  onSelect?: (value: string) => void; // Called when user picks a suggestion (not just types)
   suggestions: string[];
   placeholder?: string;
   label: string;
@@ -14,6 +15,7 @@ interface AutocompleteInputProps {
 export function AutocompleteInput({
   value,
   onChange,
+  onSelect,
   suggestions,
   placeholder,
   label,
@@ -67,6 +69,7 @@ export function AutocompleteInput({
         if (highlightIndex >= 0 && highlightIndex < filtered.length) {
           e.preventDefault();
           onChange(filtered[highlightIndex]);
+          onSelect?.(filtered[highlightIndex]);
           setIsOpen(false);
           setHighlightIndex(-1);
         }
@@ -76,10 +79,11 @@ export function AutocompleteInput({
         setHighlightIndex(-1);
         break;
     }
-  }, [showDropdown, highlightIndex, filtered, onChange]);
+  }, [showDropdown, highlightIndex, filtered, onChange, onSelect]);
 
   const handleSelect = (suggestion: string) => {
     onChange(suggestion);
+    onSelect?.(suggestion);
     setIsOpen(false);
     setHighlightIndex(-1);
   };
@@ -100,7 +104,7 @@ export function AutocompleteInput({
 
   return (
     <div ref={wrapperRef} className={`relative ${className}`}>
-      <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
+      {label && <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>}
       <input
         type={type}
         value={value}

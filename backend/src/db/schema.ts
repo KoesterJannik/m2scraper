@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { pgTable, text, timestamp, boolean, index, integer, bigint, real } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, boolean, index, integer, bigint, real, serial } from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -140,3 +140,71 @@ export const marketItemPriceHistoryRelations = relations(marketItemPriceHistory,
     references: [marketServer.id],
   }),
 }));
+
+// ── Bookmarks ──
+
+export const bookmark = pgTable(
+  "bookmark",
+  {
+    id: serial("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    vnum: integer("vnum").notNull(),
+    sellerName: text("seller_name").notNull(),
+    itemName: text("item_name").notNull(), // cached for display
+    serverId: integer("server_id"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("bookmark_user_id_idx").on(table.userId),
+    index("bookmark_vnum_seller_idx").on(table.userId, table.vnum, table.sellerName),
+  ]
+);
+
+// ── Price Alerts ──
+
+export const priceAlert = pgTable(
+  "price_alert",
+  {
+    id: serial("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    vnum: integer("vnum").notNull(),
+    serverId: integer("server_id")
+      .notNull()
+      .references(() => marketServer.id, { onDelete: "cascade" }),
+    itemName: text("item_name").notNull(), // cached for display
+    priceThreshold: real("price_threshold").notNull(), // in Won
+    direction: text("direction").notNull().default("below"), // "below" = alert when price drops below, "above" = alert when price goes above
+    active: boolean("active").default(true).notNull(),
+    lastTriggeredAt: timestamp("last_triggered_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("price_alert_user_id_idx").on(table.userId),
+    index("price_alert_vnum_server_idx").on(table.vnum, table.serverId),
+    index("price_alert_active_idx").on(table.active),
+  ]
+);
+
+// ── Messages (inbox) ──
+
+export const message = pgTable(
+  "message",
+  {
+    id: serial("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    body: text("body").notNull(),
+    read: boolean("read").default(false).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("message_user_id_idx").on(table.userId),
+    index("message_user_read_idx").on(table.userId, table.read),
+  ]
+);

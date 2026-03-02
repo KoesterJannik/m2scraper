@@ -9,6 +9,7 @@ const envSchema = z.object({
     DISCORD_CLIENT_ID: z.string(),
     DISCORD_CLIENT_SECRET: z.string(),
     FRONTEND_URL: z.string(),
+    DISCORD_WEBHOOK_URL: z.string(),
 });
 
 const env = envSchema.parse(process.env);
@@ -21,4 +22,5 @@ export const config = {
     discordClientId: env.DISCORD_CLIENT_ID,
     discordClientSecret: env.DISCORD_CLIENT_SECRET,
     frontendUrl: env.FRONTEND_URL,
+    discordWebhookUrl: env.DISCORD_WEBHOOK_URL,
 };

@@ -86,18 +86,22 @@ export function refreshServerData(serverId: number): void {
   loadServerData(serverId);
 }
 
+export interface AttrFilter {
+  name: string;
+  minValue?: number | undefined;
+}
+
 export interface ListingSearchParams {
-  search?: string;
-  minPrice?: number;
-  maxPrice?: number;
-  serverId?: number;
-  category?: string;
-  attrName?: string;
-  attrMinValue?: number;
-  limit?: number;
-  offset?: number;
-  sortBy?: 'price' | 'vnum' | 'name' | 'seller';
-  sortOrder?: 'asc' | 'desc';
+  search?: string | undefined;
+  minPrice?: number | undefined;
+  maxPrice?: number | undefined;
+  serverId?: number | undefined;
+  category?: string | undefined;
+  attrs?: AttrFilter[] | undefined;
+  limit?: number | undefined;
+  offset?: number | undefined;
+  sortBy?: 'price' | 'vnum' | 'name' | 'seller' | undefined;
+  sortOrder?: 'asc' | 'desc' | undefined;
 }
 
 export interface ListingSearchResult {
@@ -120,8 +124,7 @@ export function searchListings(params: ListingSearchParams): ListingSearchResult
     maxPrice,
     serverId,
     category,
-    attrName,
-    attrMinValue,
+    attrs,
     limit = 50,
     offset = 0,
     sortBy = 'price',
@@ -163,22 +166,18 @@ export function searchListings(params: ListingSearchParams): ListingSearchResult
   if (maxPrice !== undefined) allItems = allItems.filter(i => i.price <= maxPrice);
   if (category) allItems = allItems.filter(i => i.category === category);
 
-  // Attribute filters
-  if (attrName) {
-    const lowerAttr = attrName.toLowerCase();
-    allItems = allItems.filter(i =>
-      i.attrs && i.attrs.some(a => a.description.toLowerCase().includes(lowerAttr))
-    );
-  }
-  if (attrMinValue !== undefined) {
-    const lowerAttr = attrName?.toLowerCase();
-    allItems = allItems.filter(i =>
-      i.attrs && i.attrs.some(a => {
-        // If attrName is specified, only check matching attributes
-        if (lowerAttr && !a.description.toLowerCase().includes(lowerAttr)) return false;
-        return a.value >= attrMinValue;
-      })
-    );
+  // Attribute filters (multiple, AND logic — item must match ALL filters)
+  if (attrs && attrs.length > 0) {
+    for (const af of attrs) {
+      const lowerName = af.name.toLowerCase();
+      allItems = allItems.filter(i =>
+        i.attrs && i.attrs.some(a => {
+          if (!a.description.toLowerCase().includes(lowerName)) return false;
+          if (af.minValue !== undefined) return a.value >= af.minValue;
+          return true;
+        })
+      );
+    }
   }
 
   // Sort

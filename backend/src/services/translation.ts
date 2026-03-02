@@ -101,15 +101,27 @@ let _cachedAttrNames: string[] | null = null;
 export function getAttributeNames(): string[] {
   if (_cachedAttrNames) return _cachedAttrNames;
 
-  _cachedAttrNames = Object.values(statMap).map(desc => {
-    // Clean format specifiers: %d, %0.1f, %% → readable text
-    return desc
-      .replace(/%0?\.\d+f/g, 'X')
-      .replace(/%d/g, 'X')
-      .replace(/%%/g, '%')
+  const seen = new Set<string>();
+  const results: string[] = [];
+
+  for (const desc of Object.values(statMap)) {
+    // Strip format specifiers and %% so the remaining text matches actual descriptions
+    // e.g. "Ohnmachtschance %d%%" → "Ohnmachtschance"
+    // e.g. "%d%% Chance auf durchbohrenden Treffer" → "Chance auf durchbohrenden Treffer"
+    const cleaned = desc
+      .replace(/%0?\.\d+f/g, '')   // %0.1f etc
+      .replace(/%d/g, '')           // %d
+      .replace(/%%/g, '')           // %%
+      .replace(/[+\-]/g, '')        // + -
       .replace(/\s+/g, ' ')
       .trim();
-  });
 
+    if (cleaned && !seen.has(cleaned.toLowerCase())) {
+      seen.add(cleaned.toLowerCase());
+      results.push(cleaned);
+    }
+  }
+
+  _cachedAttrNames = results;
   return _cachedAttrNames;
 }

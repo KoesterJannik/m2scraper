@@ -24,4 +24,10 @@ app.use("/api/users", isAuthenticated, usersRouter);
 import marketRouter from "./router/market.router";
 app.use("/api/market", marketRouter);
 
+import bookmarksRouter from "./router/bookmarks.router";
+app.use("/api/bookmarks", isAuthenticated, bookmarksRouter);
+
+import alertsRouter from "./router/alerts.router";
+app.use("/api/alerts", isAuthenticated, alertsRouter);
+
 export default app;

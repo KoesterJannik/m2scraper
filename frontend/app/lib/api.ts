@@ -36,6 +36,9 @@ export interface PriceHistoryItem {
   totalListings: number;
   totalQuantity: number;
   fetchedAt: string;
+  change24h: number | null;
+  change7d: number | null;
+  change30d: number | null;
 }
 
 export interface MarketSearchParams {
@@ -44,8 +47,7 @@ export interface MarketSearchParams {
   maxPrice?: number;
   serverId?: number;
   category?: string;
-  attrName?: string;
-  attrMinValue?: number;
+  attrs?: string; // pipe-separated: "name1:value1|name2:value2"
   limit?: number;
   offset?: number;
   sortBy?: "price" | "vnum" | "name" | "seller";
@@ -145,3 +147,64 @@ export async function getAttributeNames(): Promise<string[]> {
     return [];
   }
 }
+
+// ── Bookmarks ──
+
+export interface Bookmark {
+  id: number;
+  userId: string;
+  vnum: number;
+  sellerName: string;
+  itemName: string;
+  serverId: number | null;
+  createdAt: string;
+}
+
+export async function getBookmarks(): Promise<Bookmark[]> {
+  const response = await apiClient.get("/api/bookmarks");
+  return response.data.bookmarks;
+}
+
+export async function addBookmark(data: { vnum: number; sellerName: string; itemName: string; serverId?: number }): Promise<Bookmark> {
+  const response = await apiClient.post("/api/bookmarks", data);
+  return response.data.bookmark;
+}
+
+export async function removeBookmark(id: number): Promise<void> {
+  await apiClient.delete(`/api/bookmarks/${id}`);
+}
+
+// ── Price Alerts ──
+
+export interface PriceAlert {
+  id: number;
+  userId: string;
+  vnum: number;
+  serverId: number;
+  itemName: string;
+  priceThreshold: number;
+  direction: "above" | "below";
+  active: boolean;
+  lastTriggeredAt: string | null;
+  createdAt: string;
+}
+
+export async function getAlerts(): Promise<PriceAlert[]> {
+  const response = await apiClient.get("/api/alerts");
+  return response.data.alerts;
+}
+
+export async function createAlert(data: { vnum: number; serverId: number; itemName: string; priceThreshold: number; direction: string }): Promise<PriceAlert> {
+  const response = await apiClient.post("/api/alerts", data);
+  return response.data.alert;
+}
+
+export async function deleteAlert(id: number): Promise<void> {
+  await apiClient.delete(`/api/alerts/${id}`);
+}
+
+export async function toggleAlert(id: number): Promise<PriceAlert> {
+  const response = await apiClient.patch(`/api/alerts/${id}/toggle`);
+  return response.data.alert;
+}
+
