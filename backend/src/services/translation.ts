@@ -71,3 +71,45 @@ export function searchVnumsByName(searchTerm: string): number[] {
 export function getAllItemNames(): ItemNames {
   return itemNames;
 }
+
+/**
+ * Search item names and return matching name strings (deduplicated, limited)
+ */
+export function suggestItemNames(query: string, limit = 20): string[] {
+  const lower = query.toLowerCase();
+  const seen = new Set<string>();
+  const results: string[] = [];
+
+  for (const name of Object.values(itemNames)) {
+    if (name.toLowerCase().includes(lower)) {
+      const lowerName = name.toLowerCase();
+      if (!seen.has(lowerName)) {
+        seen.add(lowerName);
+        results.push(name);
+        if (results.length >= limit) break;
+      }
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Get all attribute names from stat_map (cleaned for display)
+ */
+let _cachedAttrNames: string[] | null = null;
+export function getAttributeNames(): string[] {
+  if (_cachedAttrNames) return _cachedAttrNames;
+
+  _cachedAttrNames = Object.values(statMap).map(desc => {
+    // Clean format specifiers: %d, %0.1f, %% → readable text
+    return desc
+      .replace(/%0?\.\d+f/g, 'X')
+      .replace(/%d/g, 'X')
+      .replace(/%%/g, '%')
+      .replace(/\s+/g, ' ')
+      .trim();
+  });
+
+  return _cachedAttrNames;
+}

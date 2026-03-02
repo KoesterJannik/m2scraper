@@ -2,10 +2,14 @@ import type { Route } from "./+types/market";
 import { AuthGuard } from "../components/AuthGuard";
 import { DashboardNavbar } from "../components/DashboardNavbar";
 import { PriceHistoryPopup } from "../components/PriceHistoryPopup";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { AutocompleteInput } from "../components/AutocompleteInput";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { usePriceHistory, useListings } from "../hooks/useMarketItems";
 import { useServers } from "../hooks/useServers";
+import { useSearchParams as useRouterSearchParams } from "react-router";
 import type { MarketSearchParams } from "../lib/api";
+import { suggestItemNames, getAttributeNames } from "../lib/api";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -43,55 +47,167 @@ function PriceCell({ price, className = "" }: { price: number; className?: strin
 
 type TabType = "listings" | "priceHistory";
 
-export default function Market() {
-  const [activeTab, setActiveTab] = useState<TabType>("listings");
-  const [searchParams, setSearchParams] = useState<MarketSearchParams>({
-    limit: 50,
-    offset: 0,
-    sortBy: "price",
-    sortOrder: "desc",
-  });
+// ── Debounce hook ──
 
-  const [searchInput, setSearchInput] = useState("");
-  const [minPrice, setMinPrice] = useState("");
-  const [maxPrice, setMaxPrice] = useState("");
-  const [selectedServerId, setSelectedServerId] = useState<number | undefined>(undefined);
+function useDebounce<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  return debounced;
+}
+
+// ── URL param helpers ──
+
+interface FilterState {
+  tab: TabType;
+  search: string;
+  minPrice: string;
+  maxPrice: string;
+  serverId: number | undefined;
+  sortBy: MarketSearchParams["sortBy"];
+  sortOrder: "asc" | "desc";
+  offset: number;
+  attrName: string;
+  attrMinValue: string;
+}
+
+function parseUrlParams(urlParams: URLSearchParams): FilterState {
+  return {
+    tab: (urlParams.get("tab") as TabType) || "listings",
+    search: urlParams.get("search") || "",
+    minPrice: urlParams.get("minPrice") || "",
+    maxPrice: urlParams.get("maxPrice") || "",
+    serverId: urlParams.get("serverId") ? parseInt(urlParams.get("serverId")!) : undefined,
+    sortBy: (urlParams.get("sortBy") as MarketSearchParams["sortBy"]) || "price",
+    sortOrder: (urlParams.get("sortOrder") as "asc" | "desc") || "desc",
+    offset: urlParams.get("offset") ? parseInt(urlParams.get("offset")!) : 0,
+    attrName: urlParams.get("attrName") || "",
+    attrMinValue: urlParams.get("attrMinValue") || "",
+  };
+}
+
+function buildUrlParams(state: FilterState): URLSearchParams {
+  const p = new URLSearchParams();
+  if (state.tab !== "listings") p.set("tab", state.tab);
+  if (state.search) p.set("search", state.search);
+  if (state.minPrice) p.set("minPrice", state.minPrice);
+  if (state.maxPrice) p.set("maxPrice", state.maxPrice);
+  if (state.serverId !== undefined) p.set("serverId", state.serverId.toString());
+  if (state.sortBy && state.sortBy !== "price") p.set("sortBy", state.sortBy);
+  if (state.sortOrder !== "desc") p.set("sortOrder", state.sortOrder);
+  if (state.offset > 0) p.set("offset", state.offset.toString());
+  if (state.attrName) p.set("attrName", state.attrName);
+  if (state.attrMinValue) p.set("attrMinValue", state.attrMinValue);
+  return p;
+}
+
+export default function Market() {
+  const [urlParams, setUrlParams] = useRouterSearchParams();
+
+  // Derive initial state from URL
+  const urlState = useMemo(() => parseUrlParams(urlParams), [urlParams]);
+
+  // Local input state
+  const [searchInput, setSearchInput] = useState(urlState.search);
+  const [minPrice, setMinPrice] = useState(urlState.minPrice);
+  const [maxPrice, setMaxPrice] = useState(urlState.maxPrice);
+  const [selectedServerId, setSelectedServerId] = useState<number | undefined>(urlState.serverId);
+  const [attrNameInput, setAttrNameInput] = useState(urlState.attrName);
+  const [attrMinValueInput, setAttrMinValueInput] = useState(urlState.attrMinValue);
+  const [activeTab, setActiveTab] = useState<TabType>(urlState.tab);
+  const [sortBy, setSortBy] = useState<MarketSearchParams["sortBy"]>(urlState.sortBy);
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">(urlState.sortOrder);
+
+  // Debounce the filter inputs (500ms delay)
+  const debouncedSearch = useDebounce(searchInput, 500);
+  const debouncedMinPrice = useDebounce(minPrice, 500);
+  const debouncedMaxPrice = useDebounce(maxPrice, 500);
+  const debouncedAttrName = useDebounce(attrNameInput, 500);
+  const debouncedAttrMinValue = useDebounce(attrMinValueInput, 500);
+
+  // Sync debounced values → URL (triggers API call)
+  useEffect(() => {
+    const newState: FilterState = {
+      tab: activeTab,
+      search: debouncedSearch,
+      minPrice: debouncedMinPrice,
+      maxPrice: debouncedMaxPrice,
+      serverId: selectedServerId,
+      sortBy,
+      sortOrder,
+      offset: 0, // Reset to first page on filter change
+      attrName: debouncedAttrName,
+      attrMinValue: debouncedAttrMinValue,
+    };
+    setUrlParams(buildUrlParams(newState), { replace: true });
+  }, [debouncedSearch, debouncedMinPrice, debouncedMaxPrice, selectedServerId, debouncedAttrName, debouncedAttrMinValue, activeTab, sortBy, sortOrder, setUrlParams]);
+
+  // Build the API search params from URL state
+  const searchParams: MarketSearchParams = useMemo(() => ({
+    search: urlState.search || undefined,
+    minPrice: urlState.minPrice ? parseFloat(urlState.minPrice) : undefined,
+    maxPrice: urlState.maxPrice ? parseFloat(urlState.maxPrice) : undefined,
+    serverId: urlState.serverId,
+    attrName: urlState.attrName || undefined,
+    attrMinValue: urlState.attrMinValue ? parseFloat(urlState.attrMinValue) : undefined,
+    sortBy: urlState.sortBy,
+    sortOrder: urlState.sortOrder,
+    limit: 50,
+    offset: urlState.offset,
+  }), [urlState]);
 
   const { data: serversData } = useServers();
 
-  const listingsQuery = useListings(activeTab === "listings" ? searchParams : {});
-  const priceHistoryQuery = usePriceHistory(activeTab === "priceHistory" ? searchParams : {});
+  const listingsQuery = useListings(urlState.tab === "listings" ? searchParams : {});
+  const priceHistoryQuery = usePriceHistory(urlState.tab === "priceHistory" ? searchParams : {});
 
-  const data = activeTab === "listings" ? listingsQuery.data : priceHistoryQuery.data;
-  const isLoading = activeTab === "listings" ? listingsQuery.isLoading : priceHistoryQuery.isLoading;
-  const error = activeTab === "listings" ? listingsQuery.error : priceHistoryQuery.error;
+  const data = urlState.tab === "listings" ? listingsQuery.data : priceHistoryQuery.data;
+  const isLoading = urlState.tab === "listings" ? listingsQuery.isLoading : priceHistoryQuery.isLoading;
+  const error = urlState.tab === "listings" ? listingsQuery.error : priceHistoryQuery.error;
 
-  useEffect(() => {
-    setSearchParams(prev => ({ ...prev, serverId: selectedServerId, offset: 0 }));
-  }, [selectedServerId]);
+  // ── Autocomplete data ──
 
-  const handleSearch = () => {
-    setSearchParams({
-      ...searchParams,
-      search: searchInput || undefined,
-      minPrice: minPrice ? parseFloat(minPrice) : undefined,
-      maxPrice: maxPrice ? parseFloat(maxPrice) : undefined,
-      serverId: selectedServerId,
-      offset: 0,
-    });
-  };
+  // Item name suggestions (fetched dynamically as user types)
+  const { data: nameSuggestions = [] } = useQuery({
+    queryKey: ["suggestNames", debouncedSearch],
+    queryFn: () => suggestItemNames(debouncedSearch),
+    enabled: debouncedSearch.length >= 2 && isNaN(parseInt(debouncedSearch)),
+    staleTime: 60 * 1000,
+  });
+
+  // Attribute names (loaded once, filtered locally)
+  const { data: allAttrNames = [] } = useQuery({
+    queryKey: ["attributeNames"],
+    queryFn: getAttributeNames,
+    staleTime: Infinity,
+  });
+
+  // Update URL directly for non-debounced actions
+  const updateUrl = useCallback((updates: Partial<FilterState>) => {
+    const currentState = parseUrlParams(urlParams);
+    const newState = { ...currentState, ...updates };
+    setUrlParams(buildUrlParams(newState), { replace: true });
+  }, [urlParams, setUrlParams]);
 
   const handlePageChange = (newOffset: number) => {
-    setSearchParams({ ...searchParams, offset: newOffset });
+    updateUrl({ offset: newOffset });
   };
 
-  const handleSortChange = (sortBy: MarketSearchParams["sortBy"], sortOrder: "asc" | "desc") => {
-    setSearchParams({ ...searchParams, sortBy, sortOrder, offset: 0 });
+  const handleSortChange = (newSortBy: MarketSearchParams["sortBy"], newSortOrder: "asc" | "desc") => {
+    setSortBy(newSortBy);
+    setSortOrder(newSortOrder);
+    updateUrl({ sortBy: newSortBy, sortOrder: newSortOrder, offset: 0 });
   };
 
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab);
-    setSearchParams(prev => ({ ...prev, offset: 0 }));
+    updateUrl({ tab, offset: 0 });
+  };
+
+  const handleServerChange = (newServerId: number | undefined) => {
+    setSelectedServerId(newServerId);
   };
 
   // Hover chart state
@@ -113,7 +229,7 @@ export default function Market() {
         name: item.name,
         position: { x: rect.right + 8, y: rect.top },
       });
-    }, 400); // 400ms delay to avoid flickering
+    }, 400);
   }, []);
 
   const handleRowMouseLeave = useCallback(() => {
@@ -157,12 +273,12 @@ export default function Market() {
 
             {/* Search and Filters */}
             <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Server</label>
                   <select
                     value={selectedServerId || ""}
-                    onChange={(e) => setSelectedServerId(e.target.value ? parseInt(e.target.value) : undefined)}
+                    onChange={(e) => handleServerChange(e.target.value ? parseInt(e.target.value) : undefined)}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="">All Servers</option>
@@ -173,17 +289,13 @@ export default function Market() {
                     ))}
                   </select>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Search (Name or VNUM)</label>
-                  <input
-                    type="text"
-                    value={searchInput}
-                    onChange={(e) => setSearchInput(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                    placeholder="Item name or VNUM..."
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
+                <AutocompleteInput
+                  label="Search (Name or VNUM)"
+                  value={searchInput}
+                  onChange={setSearchInput}
+                  suggestions={nameSuggestions}
+                  placeholder="Item name or VNUM..."
+                />
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Min Won</label>
                   <input
@@ -206,13 +318,28 @@ export default function Market() {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
+                {activeTab === "listings" && (
+                  <>
+                    <AutocompleteInput
+                      label="Attribute Name"
+                      value={attrNameInput}
+                      onChange={setAttrNameInput}
+                      suggestions={allAttrNames}
+                      placeholder="e.g. krit, Verteidigung..."
+                    />
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Attribute Min Value</label>
+                      <input
+                        type="number"
+                        value={attrMinValueInput}
+                        onChange={(e) => setAttrMinValueInput(e.target.value)}
+                        placeholder="e.g. 10"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                  </>
+                )}
               </div>
-              <button
-                onClick={handleSearch}
-                className="w-full md:w-auto px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-              >
-                Search
-              </button>
             </div>
 
             {/* Loading */}
@@ -239,8 +366,8 @@ export default function Market() {
                   </h2>
                   <div className="flex gap-2">
                     <select
-                      value={searchParams.sortBy}
-                      onChange={(e) => handleSortChange(e.target.value as MarketSearchParams["sortBy"], searchParams.sortOrder || "desc")}
+                      value={sortBy}
+                      onChange={(e) => handleSortChange(e.target.value as MarketSearchParams["sortBy"], sortOrder)}
                       className="px-3 py-1 border border-gray-300 rounded-lg"
                     >
                       <option value="price">Sort by Won</option>
@@ -249,17 +376,17 @@ export default function Market() {
                       {activeTab === "listings" && <option value="seller">Sort by Seller</option>}
                     </select>
                     <button
-                      onClick={() => handleSortChange(searchParams.sortBy || "price", searchParams.sortOrder === "asc" ? "desc" : "asc")}
+                      onClick={() => handleSortChange(sortBy, sortOrder === "asc" ? "desc" : "asc")}
                       className="px-3 py-1 border border-gray-300 rounded-lg hover:bg-gray-50"
                     >
-                      {searchParams.sortOrder === "asc" ? "↑" : "↓"}
+                      {sortOrder === "asc" ? "↑" : "↓"}
                     </button>
                   </div>
                 </div>
 
                 <div className="overflow-x-auto">
                   {activeTab === "listings" ? (
-                    <ListingsTable items={(data as any).items} />
+                    <ListingsTable items={(data as any).items} highlightAttr={urlState.attrName} />
                   ) : (
                     <PriceHistoryTable
                       items={(data as any).items}
@@ -317,7 +444,9 @@ export default function Market() {
 
 // ── Listings Table (full items with seller, attrs) ──
 
-function ListingsTable({ items }: { items: any[] }) {
+function ListingsTable({ items, highlightAttr }: { items: any[]; highlightAttr?: string }) {
+  const lowerHighlight = highlightAttr?.toLowerCase();
+
   return (
     <table className="w-full">
       <thead className="bg-gray-100">
@@ -352,13 +481,18 @@ function ListingsTable({ items }: { items: any[] }) {
               <td className="px-4 py-3 text-sm text-gray-500">{item.serverName}</td>
               <td className="px-4 py-3 text-sm">
                 {item.attrs && item.attrs.length > 0 ? (
-                  <div className="text-xs text-gray-600">
-                    {item.attrs.slice(0, 2).map((attr: any, i: number) => (
-                      <div key={i}>{attr.description}</div>
-                    ))}
-                    {item.attrs.length > 2 && (
-                      <div className="text-gray-400">+{item.attrs.length - 2} more</div>
-                    )}
+                  <div className="text-xs space-y-0.5">
+                    {item.attrs.map((attr: any, i: number) => {
+                      const isMatch = lowerHighlight && attr.description.toLowerCase().includes(lowerHighlight);
+                      return (
+                        <div
+                          key={i}
+                          className={isMatch ? "text-blue-700 font-semibold" : "text-gray-600"}
+                        >
+                          {attr.description}
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : (
                   <span className="text-gray-400">-</span>

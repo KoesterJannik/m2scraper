@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db } from "../db";
 import { marketItemPriceHistory, marketServer } from "../db/schema";
 import { eq, and, gte, lte, sql, desc, asc, inArray } from "drizzle-orm";
-import { getGermanName, getGermanDescription, searchVnumsByName } from "../services/translation";
+import { getGermanName, getGermanDescription, searchVnumsByName, suggestItemNames, getAttributeNames } from "../services/translation";
 import { searchListings, getLoadedServers, type ListingSearchParams } from "../services/market-data";
 
 const router = Router();
@@ -24,6 +24,8 @@ router.get("/listings", async (req, res) => {
       maxPrice: req.query.maxPrice ? parseFloat(req.query.maxPrice as string) : undefined,
       serverId: req.query.serverId ? parseInt(req.query.serverId as string) : undefined,
       category: req.query.category as string | undefined,
+      attrName: req.query.attrName as string | undefined,
+      attrMinValue: req.query.attrMinValue ? parseFloat(req.query.attrMinValue as string) : undefined,
       limit: req.query.limit ? parseInt(req.query.limit as string) : 50,
       offset: req.query.offset ? parseInt(req.query.offset as string) : 0,
       sortBy: (req.query.sortBy as ListingSearchParams['sortBy']) || 'price',
@@ -189,6 +191,36 @@ router.get("/price-history/:vnum", async (req, res) => {
   } catch (error) {
     console.error("Error fetching price history:", error);
     res.status(500).json({ error: "Failed to fetch price history" });
+  }
+});
+
+/**
+ * GET /api/market/suggest-names?q=...
+ * Returns matching item names for autocomplete
+ */
+router.get("/suggest-names", async (req, res) => {
+  try {
+    const q = (req.query.q as string) || "";
+    if (q.length < 2) return res.json({ names: [] });
+    const names = suggestItemNames(q, 15);
+    res.json({ names });
+  } catch (error) {
+    console.error("Error suggesting names:", error);
+    res.status(500).json({ error: "Failed to suggest names" });
+  }
+});
+
+/**
+ * GET /api/market/attribute-names
+ * Returns all available attribute names for autocomplete
+ */
+router.get("/attribute-names", async (_req, res) => {
+  try {
+    const names = getAttributeNames();
+    res.json({ names });
+  } catch (error) {
+    console.error("Error fetching attribute names:", error);
+    res.status(500).json({ error: "Failed to fetch attribute names" });
   }
 });
 

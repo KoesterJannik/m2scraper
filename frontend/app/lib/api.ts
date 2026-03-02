@@ -44,6 +44,8 @@ export interface MarketSearchParams {
   maxPrice?: number;
   serverId?: number;
   category?: string;
+  attrName?: string;
+  attrMinValue?: number;
   limit?: number;
   offset?: number;
   sortBy?: "price" | "vnum" | "name" | "seller";
@@ -123,5 +125,23 @@ export async function getServers(): Promise<{ servers: any[] }> {
   } catch (error) {
     if (axios.isAxiosError(error)) throw new Error(error.response?.data?.error || error.message || "Failed to fetch servers");
     throw error;
+  }
+}
+
+export async function suggestItemNames(query: string): Promise<string[]> {
+  try {
+    const response = await apiClient.get("/api/market/suggest-names", { params: { q: query } });
+    return response.data.names;
+  } catch {
+    return [];
+  }
+}
+
+export async function getAttributeNames(): Promise<string[]> {
+  try {
+    const response = await apiClient.get("/api/market/attribute-names");
+    return response.data.names;
+  } catch {
+    return [];
   }
 }

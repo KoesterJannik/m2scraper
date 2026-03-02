@@ -92,6 +92,8 @@ export interface ListingSearchParams {
   maxPrice?: number;
   serverId?: number;
   category?: string;
+  attrName?: string;
+  attrMinValue?: number;
   limit?: number;
   offset?: number;
   sortBy?: 'price' | 'vnum' | 'name' | 'seller';
@@ -118,6 +120,8 @@ export function searchListings(params: ListingSearchParams): ListingSearchResult
     maxPrice,
     serverId,
     category,
+    attrName,
+    attrMinValue,
     limit = 50,
     offset = 0,
     sortBy = 'price',
@@ -158,6 +162,24 @@ export function searchListings(params: ListingSearchParams): ListingSearchResult
   if (minPrice !== undefined) allItems = allItems.filter(i => i.price >= minPrice);
   if (maxPrice !== undefined) allItems = allItems.filter(i => i.price <= maxPrice);
   if (category) allItems = allItems.filter(i => i.category === category);
+
+  // Attribute filters
+  if (attrName) {
+    const lowerAttr = attrName.toLowerCase();
+    allItems = allItems.filter(i =>
+      i.attrs && i.attrs.some(a => a.description.toLowerCase().includes(lowerAttr))
+    );
+  }
+  if (attrMinValue !== undefined) {
+    const lowerAttr = attrName?.toLowerCase();
+    allItems = allItems.filter(i =>
+      i.attrs && i.attrs.some(a => {
+        // If attrName is specified, only check matching attributes
+        if (lowerAttr && !a.description.toLowerCase().includes(lowerAttr)) return false;
+        return a.value >= attrMinValue;
+      })
+    );
+  }
 
   // Sort
   const dir = sortOrder === 'asc' ? 1 : -1;
