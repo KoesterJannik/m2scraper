@@ -6,6 +6,7 @@
   "engines": {
     "node": ">=24.0"
   },
+  
   "scripts": {
     "build": "tsc",
     "start": "npm run db:push && node dist/server.js",
