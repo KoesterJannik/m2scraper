@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "engines": {
+    "node": ">=24.0"
+  },
   "scripts": {
     "build": "tsc",
     "start": "npm run db:push && node dist/server.js",
@@ -21,7 +24,6 @@
   "dependencies": {
     "axios": "^1.13.6",
     "better-auth": "^1.5.1",
-    "cheerio": "^1.2.0",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "drizzle-kit": "^0.31.9",
