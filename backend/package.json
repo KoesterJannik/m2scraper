@@ -8,7 +8,8 @@
   },
   
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && npm run copy-data",
+    "copy-data": "node scripts/copy-data.js",
     "start": "npm run db:push && node dist/src/server.js",
     "dev": "tsx --watch src/server.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
